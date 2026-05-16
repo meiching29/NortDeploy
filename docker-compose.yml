@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+
+  # ── Frontend: Dashboard React ──────────────────────────
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:4000
+      - VITE_ROBLE_TOKEN=${ROBLE_TOKEN}
+    depends_on:
+      - backend
+
+  # ── Backend: Orquestador Node.js ───────────────────────
+  backend:
+    build: ./backend
+    ports:
+      - "4000:4000"
+    environment:
+      - ROBLE_TOKEN=${ROBLE_TOKEN}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./backend/repos:/app/repos        # repos clonados de GitHub
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Proxy: Caddy con subdominios dinámicos ─────────────
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on:
+      - backend
+
+networks:
+  default:
+    name: unihost-net
+
+volumes:
+  caddy_data:
