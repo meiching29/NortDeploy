@@ -4,6 +4,15 @@ import { saveTokens, getAccessToken, getRefreshToken, clearTokens } from '../uti
 
 const AuthContext = createContext(null)
 
+function buildUser(robleUser, name) {
+  return {
+    _id:   robleUser.sub,
+    email: robleUser.email,
+    role:  robleUser.role,
+    name:  name || localStorage.getItem('nd_name') || robleUser.email?.split('@')[0],
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -12,7 +21,9 @@ export function AuthProvider({ children }) {
     const token = getAccessToken()
     if (token) {
       authAPI.verifyToken(token)
-        .then(res => setUser(res.data))
+        .then(res => {
+          setUser(buildUser(res.data.user || res.data))
+        })
         .catch(() => clearTokens())
         .finally(() => setLoading(false))
     } else {
@@ -23,8 +34,13 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const res = await authAPI.login(email, password)
     saveTokens(res.data.accessToken, res.data.refreshToken)
+
+    // Guardar nombre si Roble lo devuelve en el login
+    const nameFromLogin = res.data.user?.name || res.data.name
+    if (nameFromLogin) localStorage.setItem('nd_name', nameFromLogin)
+
     const profile = await authAPI.verifyToken(res.data.accessToken)
-    setUser(profile.data)
+    setUser(buildUser(profile.data.user || profile.data, nameFromLogin))
     return res.data
   }
 

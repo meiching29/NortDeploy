@@ -14,11 +14,19 @@ module.exports = async function authMiddleware(req, res, next) {
       `${ROBLE_AUTH}/${ROBLE_TOKEN}/verify-token`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
-    // Adjuntar info del usuario al request para usarla en los controllers
-    req.user = response.data
+    console.log(`[auth] verify-token response.data = ${JSON.stringify(response.data)}`)
+
+    // Roble may wrap the user object; try common shapes
+    const robleUser = response.data?.user ?? response.data?.data ?? response.data
+    req.user = {
+      _id: robleUser.sub,
+      email: robleUser.email,
+      role: robleUser.role,
+    }
     req.accessToken = accessToken
     next()
   } catch (err) {
+    console.error(`[auth] Token verification failed: ${err.response?.status} ${err.message}`)
     return res.status(401).json({ message: 'Token inválido o expirado.' })
   }
 }

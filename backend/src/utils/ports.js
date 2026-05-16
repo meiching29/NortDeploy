@@ -11,9 +11,9 @@ function releasePort(port) {
   usedPorts.delete(port)
 }
 
-function getNextPort() {
+function getNextPort(slots = 1) {
   let port = BASE_PORT
-  while (usedPorts.has(port)) port++
+  while ([...Array(slots)].some((_, i) => usedPorts.has(port + i))) port += slots
   return port
 }
 

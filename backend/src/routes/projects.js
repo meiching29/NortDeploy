@@ -3,24 +3,24 @@ const router = express.Router()
 const auth = require('../middleware/auth')
 const rateLimit = require('../middleware/rateLimit')
 const db = require('../services/robleDB')
-const dockerService = require('../services/docker')
+const docker = require('../services/docker')
 const { getNextPort, reservePort, releasePort } = require('../utils/ports')
 const { touchProject } = require('../services/inactivity')
 
-// Todas las rutas requieren autenticación
 router.use(auth)
 
-// ── GET /projects — listar proyectos del usuario ──────────
+// ── GET /projects ─────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const projects = await db.getProjects(req.accessToken, req.user._id)
     res.json(projects)
   } catch (err) {
+    console.error('[GET /projects]', err.message)
     res.status(500).json({ message: 'Error al obtener proyectos.' })
   }
 })
 
-// ── POST /projects — crear y desplegar ───────────────────
+// ── POST /projects ────────────────────────────────────────
 router.post('/', rateLimit, async (req, res) => {
   const { nombre, repo_url, tipo, puerto: customPort } = req.body
 
@@ -28,66 +28,101 @@ router.post('/', rateLimit, async (req, res) => {
     return res.status(400).json({ message: 'nombre y repo_url son obligatorios.' })
   }
 
-  const projectId = `nd-${req.user._id.slice(0, 6)}-${nombre}-${Date.now()}`
-  const port = customPort || getNextPort()
-  const imageTag = projectId.toLowerCase().replace(/[^a-z0-9-]/g, '-')
-  const containerName = imageTag
+  const safeName = nombre.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+  const projectId = `nd-${req.user._id.slice(0, 6)}-${safeName}-${Date.now()}`
+  const imageTag = projectId
+  const hostPort = customPort || getNextPort()
   const userName = req.user.email.split('@')[0].toLowerCase()
-  const subdominio = `${nombre}.${userName}.localhost`
+  const subdominio = `${safeName}.${userName}.localhost`
 
-  reservePort(port)
+  console.log('══════════════════════════════════════════')
+  console.log('[POST /projects] Nueva solicitud de despliegue')
+  console.log(`  nombre     = ${nombre}`)
+  console.log(`  repo_url   = ${repo_url}`)
+  console.log(`  tipo       = ${tipo}`)
+  console.log(`  puerto     = ${hostPort}`)
+  console.log(`  usuario    = ${req.user._id} / ${req.user.email}`)
+  console.log('══════════════════════════════════════════')
+
+  // Reservar rango de puertos para compose (máx 5 servicios)
+  for (let i = 0; i < 5; i++) reservePort(hostPort + i)
 
   try {
-    // 1. Clonar repo
-    const repoDir = await dockerService.cloneRepo(repo_url, projectId)
+    // STEP 1 — Clonar repo
+    console.log('[STEP 1] Clonando repo...')
+    const repoDir = await docker.cloneRepo(repo_url, projectId)
+    console.log(`[STEP 1] ✓ repoDir = ${repoDir}`)
 
-    // 2. Detectar tipo si no se especificó
-    const deployType = tipo || dockerService.detectDeployType(repoDir)
+    // STEP 2 — Detectar tipo
+    console.log('[STEP 2] Detectando tipo de despliegue...')
+    const deployType = tipo || docker.detectDeployType(repoDir)
     if (!deployType) {
+      releasePort(hostPort)
       return res.status(400).json({ message: 'No se encontró Dockerfile ni docker-compose.yml en el repositorio.' })
     }
+    console.log(`[STEP 2] deployType = ${deployType}`)
 
-    // 3. Build de imagen
-    await dockerService.buildImage(repoDir, imageTag)
+    let containerId, imageId
 
-    // 4. Correr contenedor
-    const { containerId, imageId } = await dockerService.runContainer(
-      imageTag, containerName, port, customPort || 3000
-    )
+    if (deployType === 'dockerfile') {
+      // STEP 3a — Build imagen
+      console.log('[STEP 3] Construyendo imagen Docker...')
+      await docker.buildImage(repoDir, imageTag)
 
-    // 5. Guardar en Roble DB
+      // STEP 4a — Correr contenedor
+      console.log('[STEP 4] Lanzando contenedor...')
+      const result = await docker.runContainer(imageTag, imageTag, hostPort, customPort || 3000)
+      containerId = result.containerId
+      imageId = result.imageId
+
+    } else {
+      // STEP 3b — Docker Compose up
+      console.log('[STEP 3] Levantando docker-compose...')
+      const result = await docker.runCompose(repoDir, imageTag, hostPort)
+      containerId = result.containerId
+      imageId = result.imageId
+    }
+
+    // STEP 5 — Guardar en Roble DB
+    console.log('[STEP 5] Guardando en Roble DB...')
     const project = await db.createProject(req.accessToken, {
-      nombre,
+      nombre: safeName,
       repo_url,
-      tipo:          deployType,
-      puerto:        port,
-      usuario_id:    req.user._id,
+      tipo: deployType,
+      puerto: hostPort,
+      usuario_id: req.user._id,
       usuario_email: req.user.email,
-      container_id:  containerId,
-      image_id:      imageId,
+      container_id: containerId,
+      image_id: imageId,
       subdominio,
-      repo_dir:      repoDir,
+      repo_dir: repoDir,
     })
 
+    console.log(`[POST /projects] ✓ Proyecto creado: ${project._id}`)
     res.status(201).json(project)
 
   } catch (err) {
-    releasePort(port)
-    console.error(`[POST /projects] Error:`, err.message)
+    releasePort(hostPort)
+    console.error('[POST /projects] ✗ ERROR en despliegue:')
+    console.error(`  message : ${err.message}`)
     res.status(500).json({ message: `Error al desplegar: ${err.message}` })
   }
 })
 
-// ── POST /projects/:id/start — reactivar ─────────────────
+// ── POST /projects/:id/start ──────────────────────────────
 router.post('/:id/start', async (req, res) => {
   try {
     const project = await db.getProjectById(req.accessToken, req.params.id)
     if (!project) return res.status(404).json({ message: 'Proyecto no encontrado.' })
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
-    await dockerService.startContainer(project.container_id)
-    reservePort(project.puerto)
+    if (project.tipo === 'compose') {
+      await docker.startCompose(project.repo_dir, project.container_id)
+    } else {
+      await docker.startContainer(project.container_id)
+    }
 
+    reservePort(project.puerto)
     const updated = await db.updateProject(req.accessToken, project._id, { estado: 'online' })
     res.json(updated)
   } catch (err) {
@@ -95,16 +130,20 @@ router.post('/:id/start', async (req, res) => {
   }
 })
 
-// ── POST /projects/:id/stop — pausar ─────────────────────
+// ── POST /projects/:id/stop ───────────────────────────────
 router.post('/:id/stop', async (req, res) => {
   try {
     const project = await db.getProjectById(req.accessToken, req.params.id)
     if (!project) return res.status(404).json({ message: 'Proyecto no encontrado.' })
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
-    await dockerService.stopContainer(project.container_id)
-    releasePort(project.puerto)
+    if (project.tipo === 'compose') {
+      await docker.stopCompose(project.repo_dir, project.container_id)
+    } else {
+      await docker.stopContainer(project.container_id)
+    }
 
+    releasePort(project.puerto)
     const updated = await db.updateProject(req.accessToken, project._id, { estado: 'paused' })
     res.json(updated)
   } catch (err) {
@@ -112,31 +151,35 @@ router.post('/:id/stop', async (req, res) => {
   }
 })
 
-// ── DELETE /projects/:id — eliminar ──────────────────────
+// ── DELETE /projects/:id ──────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
     const project = await db.getProjectById(req.accessToken, req.params.id)
     if (!project) return res.status(404).json({ message: 'Proyecto no encontrado.' })
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
-    await dockerService.removeContainer(project.container_id, project.image_id)
+    if (project.tipo === 'compose') {
+      await docker.removeCompose(project.repo_dir, project.container_id)
+    } else {
+      await docker.removeContainer(project.container_id, project.image_id)
+    }
+
     releasePort(project.puerto)
     await db.deleteProject(req.accessToken, project._id)
-
     res.json({ message: 'Proyecto eliminado.' })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
 })
 
-// ── GET /projects/:id/logs — logs del contenedor ─────────
+// ── GET /projects/:id/logs ────────────────────────────────
 router.get('/:id/logs', async (req, res) => {
   try {
     const project = await db.getProjectById(req.accessToken, req.params.id)
     if (!project) return res.status(404).json({ message: 'Proyecto no encontrado.' })
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
-    const logs = await dockerService.getContainerLogs(project.container_id)
+    const logs = await docker.getContainerLogs(project.container_id)
     await touchProject(project._id, req.accessToken)
     res.json({ logs })
   } catch (err) {
@@ -144,7 +187,7 @@ router.get('/:id/logs', async (req, res) => {
   }
 })
 
-// ── GET /projects/:id/stats — CPU y memoria ──────────────
+// ── GET /projects/:id/stats ───────────────────────────────
 router.get('/:id/stats', async (req, res) => {
   try {
     const project = await db.getProjectById(req.accessToken, req.params.id)
@@ -152,7 +195,7 @@ router.get('/:id/stats', async (req, res) => {
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
     if (project.estado !== 'online') return res.status(400).json({ message: 'El proyecto no está activo.' })
 
-    const stats = await dockerService.getContainerStats(project.container_id)
+    const stats = await docker.getContainerStats(project.container_id)
     await touchProject(project._id, req.accessToken)
     res.json(stats)
   } catch (err) {

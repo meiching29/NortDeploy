@@ -78,7 +78,15 @@ async function createProject(accessToken, data) {
       repo_dir:         data.repo_dir || null,
     }]
   })
-  return res.data.inserted[0]
+
+  console.log(`[robleDB] insert response.data = ${JSON.stringify(res.data)}`)
+
+  // Roble may return the inserted row under different keys; handle gracefully
+  const inserted = res.data?.inserted?.[0]
+    ?? res.data?.records?.[0]
+    ?? res.data?.[0]
+    ?? res.data
+  return inserted
 }
 
 async function updateProject(accessToken, projectId, updates) {

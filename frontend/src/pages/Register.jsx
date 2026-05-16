@@ -60,6 +60,7 @@ export default function Register() {
     setLoading(true)
     try {
       await authAPI.register(form.email, form.password, form.name)
+      localStorage.setItem('nd_name', form.name)
       setSuccess('Código enviado a ' + form.email)
       setStep(2)
       setError(null)
