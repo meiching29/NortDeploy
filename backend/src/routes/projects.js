@@ -187,6 +187,36 @@ router.get('/:id/logs', async (req, res) => {
   }
 })
 
+// ── PUT /projects/:id ──────────────────────────────────────
+router.put('/:id', async (req, res) => {
+  try {
+    const project = await db.getProjectById(req.accessToken, req.params.id)
+    if (!project) return res.status(404).json({ message: 'Proyecto no encontrado.' })
+    if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
+
+    const { nombre, repo_url, tipo } = req.body
+    const updates = {}
+
+    if (nombre) {
+      const safeName = nombre.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+      updates.nombre = safeName
+      const userName = req.user.email.split('@')[0].toLowerCase()
+      updates.subdominio = `${safeName}.${userName}.localhost`
+    }
+    if (repo_url) updates.repo_url = repo_url
+    if (tipo) updates.tipo = tipo
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No hay campos para actualizar.' })
+    }
+
+    const updated = await db.updateProject(req.accessToken, project._id, updates)
+    res.json(updated)
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+})
+
 // ── GET /projects/:id/stats ───────────────────────────────
 router.get('/:id/stats', async (req, res) => {
   try {

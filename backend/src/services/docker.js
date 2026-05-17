@@ -64,24 +64,38 @@ async function buildImage(repoDir, imageTag) {
     { t: imageTag, nocache: false }
   )
 
-  await new Promise((resolve, reject) => {
-    docker.modem.followProgress(
-      buildStream,
-      (err, output) => {
-        if (err) return reject(err)
-        const errorEvent = output.find(o => o.error)
-        if (errorEvent) return reject(new Error(errorEvent.error.trim()))
-        console.log(`[buildImage] ✓ Build finalizado`)
-        resolve(output)
-      },
-      (event) => {
-        if (event.stream) process.stdout.write(`  [build] ${event.stream}`)
-        else if (event.error) console.error(`  [build ERROR] ${event.error}`)
-      }
-    )
-  })
+  return new Promise((resolve, reject) => {
+    let lastError = null
 
-  return imageTag
+    buildStream.on('data', (chunk) => {
+      try {
+        const lines = chunk.toString().split('\n').filter(Boolean)
+        for (const line of lines) {
+          const event = JSON.parse(line)
+          if (event.stream) process.stdout.write(`  [build] ${event.stream}`)
+          if (event.error) {
+            console.error(`  [build ERROR] ${event.error}`)
+            lastError = event.error
+          }
+          if (event.status) console.log(`  [build] ${event.status}`)
+        }
+      } catch { }
+    })
+
+    buildStream.on('end', () => {
+      if (lastError) {
+        reject(new Error(lastError.trim()))
+      } else {
+        console.log(`[buildImage] ✓ Build finalizado: ${imageTag}`)
+        resolve(imageTag)
+      }
+    })
+
+    buildStream.on('error', (err) => {
+      console.error(`[buildImage] Stream error: ${err.message}`)
+      reject(err)
+    })
+  })
 }
 
 // ── Correr contenedor (solo Dockerfile) ──────────────────

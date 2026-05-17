@@ -1,5 +1,7 @@
 const path = require('path')
 
+REPOS_DIR: process.env.REPOS_DIR || 'C:\\NortDeployRepos',
+
 module.exports = {
   PORT:         process.env.PORT         || 4000,
   ROBLE_TOKEN:  process.env.ROBLE_TOKEN  || 'nortdeploy_3e0806f857',

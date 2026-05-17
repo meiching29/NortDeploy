@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import ProjectCard from '../components/ProjectCard'
 import NewProjectModal from '../components/NewProjectModal'
+import EditProjectModal from '../components/EditProjectModal'
+import LogsModal from '../components/LogsModal'
 import { projectsAPI } from '../api/projects'
 import '../../styles.css'
 
@@ -33,6 +35,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [editingProject, setEditingProject] = useState(null)
+  const [logsProjectId, setLogsProjectId] = useState(null)
   const [error, setError] = useState(null)
 
   // Cargar proyectos del backend
@@ -77,9 +81,31 @@ export default function Dashboard() {
       if (action === 'start') await projectsAPI.start(projectId)
       if (action === 'stop') await projectsAPI.stop(projectId)
       if (action === 'remove') await projectsAPI.remove(projectId)
+      if (action === 'edit') {
+        const p = projects.find(pj => pj.id === projectId)
+        if (p) setEditingProject(p)
+        return
+      }
+      if (action === 'logs') {
+        setLogsProjectId(projectId)
+        return
+      }
       await fetchProjects()
     } catch (err) {
       setError(`Error al ejecutar la acción: ${err.response?.data?.message || err.message}`)
+    }
+  }
+
+  async function handleSaveEdit(projectId, formData) {
+    try {
+      await projectsAPI.update(projectId, {
+        nombre: formData.name,
+        repo_url: formData.repo,
+        tipo: formData.type,
+      })
+      await fetchProjects()
+    } catch (err) {
+      setError(`Error al guardar cambios: ${err.response?.data?.message || err.message}`)
     }
   }
 
@@ -193,6 +219,21 @@ export default function Dashboard() {
             onClose={() => setShowModal(false)}
             onDeploy={handleDeploy}
             userName={user?.name}
+          />
+        )}
+
+        {editingProject && (
+          <EditProjectModal
+            project={editingProject}
+            onClose={() => setEditingProject(null)}
+            onSave={handleSaveEdit}
+          />
+        )}
+
+        {logsProjectId && (
+          <LogsModal
+            projectId={logsProjectId}
+            onClose={() => setLogsProjectId(null)}
           />
         )}
 

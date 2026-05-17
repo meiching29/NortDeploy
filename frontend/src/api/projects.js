@@ -31,6 +31,9 @@ export const projectsAPI = {
   // GET /projects/:id/logs — logs del contenedor
   logs: (id) => api.get(`/projects/${id}/logs`),
 
+  // PUT /projects/:id — actualizar proyecto
+  update: (id, data) => api.put(`/projects/${id}`, data),
+
   // GET /projects/:id/stats — uso de CPU y memoria
   stats: (id) => api.get(`/projects/${id}/stats`),
 }

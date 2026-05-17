@@ -5,7 +5,6 @@ export default function ProjectCard({ project, onAction }) {
 
   return (
     <>
-      <style>{css}</style>
       <div className={`project-card status-${status}`}>
         <div className="pc-top">
           <span className="pc-name">{name}</span>
@@ -59,16 +58,24 @@ export default function ProjectCard({ project, onAction }) {
             </svg>
           </button>
 
-          {/* Terminal */}
-          <button className="pc-btn" title="Terminal">
+          {/* Ver enlace */}
+          <button className="pc-btn link" title="Abrir enlace" onClick={e => { e.stopPropagation(); window.open(`http://${url}`, '_blank') }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
             </svg>
           </button>
 
-          <button className="pc-btn pc-btn-more" title="Más opciones">
+          {/* Editar */}
+          <button className="pc-btn edit" title="Editar" onClick={e => { e.stopPropagation(); onAction(id, 'edit') }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" />
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+
+          {/* Terminal */}
+          <button className="pc-btn terminal" title="Ver logs" onClick={e => { e.stopPropagation(); onAction(id, 'logs') }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
             </svg>
           </button>
         </div>
