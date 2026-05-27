@@ -1,37 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { authAPI } from '../api/roble'
 import nortLogo from '../assets/nort-logo.png'
-import uninorte60 from '../assets/roble-uninorte.png'
-import robleLogo from '../assets/roble-logo.png'
 import openlabLogo from '../assets/openlab-logo.png'
-import '../../styles.css'
-
-function NortLogo({ size = 40 }) {
-  return (
-    <img
-      src={nortLogo}
-      alt="NortDeploy Logo"
-      style={{
-        width: size,
-        height: size,
-        objectFit: 'contain',
-        filter: 'drop-shadow(0 0 12px rgba(255,107,0,0.25))'
-      }}
-    />
-  )
-}
-
-const STREAKS = [
-  { left: '38%', width: 2, height: 280, color: 'rgba(200,32,46,0.7)', rot: '-28deg', dur: '3.2s', delay: '0s', op: 0.6 },
-  { left: '42%', width: 1, height: 180, color: 'rgba(255,107,0,0.5)', rot: '-28deg', dur: '4.1s', delay: '0.8s', op: 0.45 },
-  { left: '46%', width: 3, height: 320, color: 'rgba(245,168,0,0.6)', rot: '-28deg', dur: '2.8s', delay: '1.4s', op: 0.55 },
-  { left: '50%', width: 1.5, height: 200, color: 'rgba(200,32,46,0.4)', rot: '-28deg', dur: '5s', delay: '0.3s', op: 0.35 },
-  { left: '54%', width: 2, height: 250, color: 'rgba(255,107,0,0.65)', rot: '-28deg', dur: '3.6s', delay: '2s', op: 0.5 },
-  { left: '58%', width: 1, height: 160, color: 'rgba(245,168,0,0.4)', rot: '-28deg', dur: '4.5s', delay: '1s', op: 0.3 },
-  { left: '34%', width: 1.5, height: 220, color: 'rgba(255,107,0,0.35)', rot: '-28deg', dur: '5.5s', delay: '1.8s', op: 0.3 },
-  { left: '62%', width: 2.5, height: 300, color: 'rgba(200,32,46,0.5)', rot: '-28deg', dur: '3.9s', delay: '0.6s', op: 0.45 },
-]
+import BackgroundOrb from '../components/BackgroundOrb'
 
 export default function VerifyEmail() {
   const navigate = useNavigate()
@@ -50,7 +23,7 @@ export default function VerifyEmail() {
     if (val && i < 5) document.getElementById(`vc${i + 1}`)?.focus()
   }
 
-  const handleVerify = async e => {
+  const handleVerify = async (e) => {
     e.preventDefault()
     const full = code.join('')
     if (full.length < 6) { setError('Ingresa los 6 dígitos del código.'); return }
@@ -61,9 +34,7 @@ export default function VerifyEmail() {
       navigate('/login?verified=1')
     } catch (err) {
       setError(err.response?.data?.message || 'Código incorrecto o expirado.')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const handleResend = async () => {
@@ -74,118 +45,108 @@ export default function VerifyEmail() {
       setSuccess('Código reenviado a ' + email)
     } catch (err) {
       setError(err.response?.data?.message || 'Error al reenviar el código.')
-    } finally {
-      setResending(false)
-    }
+    } finally { setResending(false) }
   }
 
   return (
-    <div className="login-root">
-      <div className="streaks-canvas">
-        {STREAKS.map((s, i) => (
-          <div key={i} className="streak-track" style={{
-            left: s.left, top: '-30%',
-            transform: `rotate(${s.rot})`,
-            opacity: s.op,
-          }}>
-            <div className="streak" style={{
-              width: s.width + 'px', height: s.height + 'px',
-              background: `linear-gradient(180deg, transparent, ${s.color}, transparent)`,
-              animationDuration: s.dur, animationDelay: s.delay,
-            }} />
+    <div className="min-h-screen bg-ndark flex flex-col items-center justify-center relative px-6">
+      <div className="absolute inset-0 bg-gradient-to-br from-nred/[0.02] via-transparent to-ngold/[0.01] pointer-events-none" />
+
+      <BackgroundOrb intensity={1.5} />
+
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="absolute top-6 left-8 flex items-center gap-2 z-10"
+      >
+        <img src={nortLogo} alt="NortDeploy" className="w-6 h-6 object-contain" />
+        <span className="font-body font-bold text-base text-white tracking-tight">
+          Nort<span className="text-nred">Deploy</span>
+        </span>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-sm relative z-10"
+      >
+        <div className="bg-nsurface/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-10 relative">
+          <Link
+            to="/"
+            className="absolute top-3 left-3 w-8 h-8 rounded-lg flex items-center justify-center text-ntext-muted/30 hover:text-ntext hover:bg-white/[0.04] transition-all duration-200"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </Link>
+          <div className="text-center mb-7">
+            <img src={nortLogo} alt="NortDeploy" className="w-11 h-11 object-contain mx-auto mb-3" />
+            <h1 className="font-body font-bold text-xl text-white mb-1">Código de verificación</h1>
+            <p className="font-body text-sm text-ntext-muted">
+              Ingresa el código enviado a{' '}
+              <span className="text-white/60">{email || 'tu correo'}</span>
+            </p>
           </div>
-        ))}
-      </div>
 
-      <div className="dot-grid" />
-      <div className="glow-center" />
-
-      <div className="login-left">
-        <div className="brand">
-          <NortLogo size={32} />
-          <span className="brand-name">Nort<span> Deploy</span></span>
-        </div>
-
-        <div>
-          <div className="eyebrow"><div className="eyebrow-dot" />Verificación · OpenLab Uninorte</div>
-          <div className="hero">
-            <h1 className="hero-title">Confirma tu<br />correo electrónico.<br /><span className="hero-gradient">Listo para desplegar.</span></h1>
-            <p className="hero-sub">Hemos enviado un código de 6 dígitos a tu correo institucional. Revisa tu bandeja de entrada o spam.</p>
-          </div>
-
-            <div className="tech-row">
-              {[
-                { label: 'Correo', icon: 'mail' },
-                { label: 'Código', icon: 'key' },
-                { label: 'Verificación', icon: 'check' },
-                { label: 'Roble', icon: robleLogo },
-                { label: 'OpenLab', icon: openlabLogo },
-              ].map(t => (
-                <div className="tech-pill" key={t.label}>
-                  {typeof t.icon === 'string' ? (
-                    <svg className="tech-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      {t.icon === 'mail' && <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 4l-10 8L2 4" /></>}
-                      {t.icon === 'key' && <><circle cx="11" cy="11" r="8" /><path d="M21 21l-4-4" /><path d="M11 11l-4 4" /><path d="M15 7l-4 4" /></>}
-                      {t.icon === 'check' && <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>}
-                    </svg>
-                  ) : (
-                    <img className="tech-logo" src={t.icon} alt={t.label} />
-                  )}
-                  {t.label}
-                </div>
-              ))}
+          {success && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-body mb-5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+              {success}
             </div>
+          )}
 
-          <div className="terminal">
-            <div className="terminal-dots">
-              <span style={{ background: '#ff5f57' }} /><span style={{ background: '#febc2e' }} /><span style={{ background: '#28c840' }} />
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-xs font-body mb-5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+              {error}
             </div>
-            <div className="t-line">Verificando correo...</div>
-            <div className="t-line">Código enviado a {email}<span className="t-cursor" /></div>
-          </div>
-        </div>
-      </div>
+          )}
 
-      <div className="login-right">
-        <div className="form-card">
-          <div className="card-logo"><NortLogo size={52} /></div>
-          <h2 className="card-title">Código de verificación</h2>
-          <p className="card-sub">Ingresa el código enviado a <strong style={{ color: '#94a3b8' }}>{email || 'tu correo'}</strong></p>
-
-          {success && <div className="verified-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>{success}</div>}
-          {error && <div className="error-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>{error}</div>}
-
-          <form onSubmit={handleVerify}>
-            <div className="code-grid">
+          <form onSubmit={handleVerify} className="flex flex-col gap-6">
+            <div className="flex gap-2 justify-center">
               {code.map((c, i) => (
-                <input key={i} id={`vc${i}`} className="code-cell" maxLength={1} value={c}
-                  onChange={e => handleCodeChange(i, e.target.value)}
-                  onKeyDown={e => e.key === 'Backspace' && !c && i > 0 && document.getElementById(`vc${i - 1}`)?.focus()}
+                <input
+                  key={i}
+                  id={`vc${i}`}
+                  className="w-11 h-12 text-center font-mono text-lg font-bold bg-transparent border-b-2 border-white/10 text-white outline-none focus:border-nred transition-colors duration-200 placeholder:text-white/20"
+                  maxLength={1}
+                  value={c}
+                  onChange={(e) => handleCodeChange(i, e.target.value)}
+                  onKeyDown={(e) => e.key === 'Backspace' && !c && i > 0 && document.getElementById(`vc${i - 1}`)?.focus()}
                   placeholder="·"
                 />
               ))}
             </div>
-            <button className="btn-roble" type="submit" disabled={loading || !email}>
-              {loading ? <><div className="spinner" />Verificando...</> : <>Verificar <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></>}
+            <button type="submit" disabled={loading || !email}
+              className="w-full py-3 rounded-xl font-body font-semibold text-sm text-white border border-nred/30 bg-nred/[0.08] hover:bg-nred/20 hover:border-nred disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+            >
+              {loading ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Verificando...</> : 'Verificar código'}
             </button>
-            <button type="button" className="toggle-form" style={{ marginTop: 12 }} onClick={handleResend} disabled={resending}>
+            <button type="button" onClick={handleResend} disabled={resending}
+              className="text-center font-body text-xs text-ntext-muted/50 hover:text-ntext-muted transition-colors bg-transparent border-none cursor-pointer disabled:opacity-40"
+            >
               {resending ? 'Reenviando...' : '¿No llegó el código? Reenviar'}
             </button>
           </form>
 
-          <div className="no-account" style={{ borderTop: 'none', marginTop: 16, paddingTop: 0 }}>
-            ¿Ya verificaste? <Link to="/login">Inicia sesión</Link>
-          </div>
-
-          <div className="powered-row">
-            <em>Powered by Roble</em> · <em style={{ color: '#F5A800' }}>OpenLab Uninorte</em>
-          </div>
+          <p className="text-center font-body text-xs text-ntext-muted/60 mt-6">
+            ¿Ya verificaste?{' '}
+            <Link to="/login" className="text-nred font-semibold hover:text-nred-hover transition-colors">
+              Inicia sesión
+            </Link>
+          </p>
         </div>
-      </div>
 
-      <div className="left-footer">
-        <img src={uninorte60} alt="Uninorte 60 años" className="footer-60-logo" />
-      </div>
+        <div className="flex items-center justify-center gap-2 mt-6 font-mono text-[10px] text-ntext-muted/30">
+          <span>Powered by Roble</span>
+          <span className="text-white/10">·</span>
+          <span className="text-ngold/40">
+            <img src={openlabLogo} alt="OpenLab" className="w-3 h-3 object-contain inline-block align-middle mr-1" />
+          </span>
+        </div>
+      </motion.div>
     </div>
   )
 }

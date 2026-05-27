@@ -1,39 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { authAPI } from '../api/roble'
 import nortLogo from '../assets/nort-logo.png'
-import uninorte60 from '../assets/roble-uninorte.png'
-import '../../styles.css'
+import openlabLogo from '../assets/openlab-logo.png'
+import BackgroundOrb from '../components/BackgroundOrb'
 
-function NortLogo({ size = 40 }) {
-  return (
-    <img
-      src={nortLogo}
-      alt="NortDeploy Logo"
-      style={{
-        width: size,
-        height: size,
-        objectFit: 'contain',
-        filter: 'drop-shadow(0 0 12px rgba(255,107,0,0.25))'
-      }}
-    />
-  )
-}
-
-const STREAKS = [
-  { left: '38%', width: 2, height: 280, color: 'rgba(200,32,46,0.7)', rot: '-28deg', dur: '3.2s', delay: '0s', op: 0.6 },
-  { left: '42%', width: 1, height: 180, color: 'rgba(255,107,0,0.5)', rot: '-28deg', dur: '4.1s', delay: '0.8s', op: 0.45 },
-  { left: '46%', width: 3, height: 320, color: 'rgba(245,168,0,0.6)', rot: '-28deg', dur: '2.8s', delay: '1.4s', op: 0.55 },
-  { left: '50%', width: 1.5, height: 200, color: 'rgba(200,32,46,0.4)', rot: '-28deg', dur: '5s', delay: '0.3s', op: 0.35 },
-  { left: '54%', width: 2, height: 250, color: 'rgba(255,107,0,0.65)', rot: '-28deg', dur: '3.6s', delay: '2s', op: 0.5 },
-  { left: '58%', width: 1, height: 160, color: 'rgba(245,168,0,0.4)', rot: '-28deg', dur: '4.5s', delay: '1s', op: 0.3 },
-  { left: '34%', width: 1.5, height: 220, color: 'rgba(255,107,0,0.35)', rot: '-28deg', dur: '5.5s', delay: '1.8s', op: 0.3 },
-  { left: '62%', width: 2.5, height: 300, color: 'rgba(200,32,46,0.5)', rot: '-28deg', dur: '3.9s', delay: '0.6s', op: 0.45 },
-]
-
-const STEPS = [
-  { label: 'Datos de cuenta', desc: 'Nombre, correo y contraseña' },
-  { label: 'Verificar correo', desc: 'Código de 6 dígitos enviado a tu email' },
+const steps = [
+  { label: 'Datos de cuenta' },
+  { label: 'Verificar correo' },
 ]
 
 export default function Register() {
@@ -45,18 +20,29 @@ export default function Register() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
 
-  const handleChange = e => { setForm(f => ({ ...f, [e.target.name]: e.target.value })); setError(null) }
+  const handleChange = (e) => {
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+    if (error) setError(null)
+  }
 
   const handleCodeChange = (i, val) => {
     if (!/^\d?$/.test(val)) return
-    const next = [...code]; next[i] = val; setCode(next)
-    if (val && i < 5) document.getElementById(`c${i + 1}`)?.focus()
+    const next = [...code]
+    next[i] = val
+    setCode(next)
+    if (val && i < 5) document.getElementById(`rc${i + 1}`)?.focus()
   }
 
-  const handleRegister = async e => {
+  const handleRegister = async (e) => {
     e.preventDefault()
-    if (!form.name || !form.email || !form.password) { setError('Completa todos los campos.'); return }
-    if (form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres.'); return }
+    if (!form.name || !form.email || !form.password) {
+      setError('Completa todos los campos.')
+      return
+    }
+    if (form.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres.')
+      return
+    }
     setLoading(true)
     try {
       await authAPI.register(form.email, form.password, form.name)
@@ -64,161 +50,213 @@ export default function Register() {
       setSuccess('Código enviado a ' + form.email)
       setStep(2)
       setError(null)
-    } catch (err) { setError(err.response?.data?.message || 'Error al crear la cuenta.') }
-    finally { setLoading(false) }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al crear la cuenta.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleVerify = async e => {
+  const handleVerify = async (e) => {
     e.preventDefault()
     const full = code.join('')
-    if (full.length < 6) { setError('Ingresa los 6 dígitos del código.'); return }
+    if (full.length < 6) {
+      setError('Ingresa los 6 dígitos del código.')
+      return
+    }
     setLoading(true)
-    try { await authAPI.verifyEmail(form.email, full); navigate('/login?verified=1') }
-    catch (err) { setError(err.response?.data?.message || 'Código incorrecto.') }
-    finally { setLoading(false) }
+    try {
+      await authAPI.verifyEmail(form.email, full)
+      navigate('/login?verified=1')
+    } catch (err) {
+      setError(err.response?.data?.message || 'Código incorrecto.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="login-root">
-      <div className="streaks-canvas">
-        {STREAKS.map((s, i) => (
-          <div key={i} className="streak-track" style={{
-            left: s.left, top: '-30%',
-            transform: `rotate(${s.rot})`,
-            opacity: s.op,
-          }}>
-            <div className="streak" style={{
-              width: s.width + 'px', height: s.height + 'px',
-              background: `linear-gradient(180deg, transparent, ${s.color}, transparent)`,
-              animationDuration: s.dur, animationDelay: s.delay,
-            }} />
-          </div>
-        ))}
-      </div>
+    <div className="min-h-screen bg-ndark flex flex-col items-center justify-center relative px-6">
+      <div className="absolute inset-0 bg-gradient-to-br from-nred/[0.02] via-transparent to-ngold/[0.01] pointer-events-none" />
 
-      <div className="dot-grid" />
-      <div className="glow-center" />
+      <BackgroundOrb intensity={1.5} />
 
-      <div className="login-left">
-        <div className="brand">
-          <NortLogo size={32} />
-          <span className="brand-name">Nort<span> Deploy</span></span>
-        </div>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="absolute top-6 left-8 flex items-center gap-2 z-10"
+      >
+        <img src={nortLogo} alt="NortDeploy" className="w-6 h-6 object-contain" />
+        <span className="font-body font-bold text-base text-white tracking-tight">
+          Nort<span className="text-nred">Deploy</span>
+        </span>
+      </motion.div>
 
-        <div>
-          <div className="eyebrow"><div className="eyebrow-dot" />Registro · OpenLab Uninorte</div>
-          <div className="hero">
-            <h1 className="hero-title">Crea tu cuenta<br />y despliega.<br /><span className="hero-gradient">En segundos.</span></h1>
-            <p className="hero-sub">Usa tu correo institucional @uninorte.edu.co para comenzar.</p>
-
-            <div className="steps-section" style={{ marginTop: 28 }}>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                {STEPS.map((s, i) => {
-                  const idx = i + 1
-                  const done = idx < step
-                  const active = idx === step
-                  const color = done ? '#22c55e' : active ? '#C8202E' : '#475569'
-                  const bg = done ? 'rgba(34,197,94,0.10)' : active ? 'rgba(200,32,46,0.10)' : 'rgba(255,255,255,0.03)'
-                  const border = done ? 'rgba(34,197,94,0.25)' : active ? 'rgba(200,32,46,0.25)' : 'rgba(255,255,255,0.06)'
-                  return (
-                    <div key={i}
-                      style={{
-                        flex: 1, padding: '10px 14px', borderRadius: 10,
-                        background: bg, border: `1px solid ${border}`,
-                        transition: 'all 0.3s',
-                      }}
-                    >
-                      <div style={{
-                        fontSize: 11, fontWeight: 700, color,
-                        marginBottom: 2, letterSpacing: '0.05em', textTransform: 'uppercase',
-                      }}>
-                        {done && <span style={{ marginRight: 4 }}>✓</span>}
-                        Paso {idx}
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: active ? '#e2e8f0' : done ? '#94a3b8' : '#475569' }}>
-                        {s.label}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <div style={{
-                  flex: 1, height: 4, borderRadius: 2,
-                  background: step > 1 ? '#22c55e' : step === 1 ? '#C8202E' : '#23262F',
-                  transition: 'all 0.4s',
-                }} />
-                <div style={{
-                  flex: 1, height: 4, borderRadius: 2,
-                  background: step > 2 ? '#22c55e' : step === 2 ? '#C8202E' : '#23262F',
-                  transition: 'all 0.4s',
-                }} />
-              </div>
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-sm relative z-10"
+      >
+        <div className="bg-nsurface/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-10 relative">
+          <Link
+            to="/"
+            className="absolute top-3 left-3 w-8 h-8 rounded-lg flex items-center justify-center text-ntext-muted/30 hover:text-ntext hover:bg-white/[0.04] transition-all duration-200"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </Link>
+          <div className="relative mb-8">
+            <div className="h-0.5 rounded-full bg-white/[0.04] overflow-hidden">
+              <motion.div
+                className="h-full bg-nred rounded-full"
+                initial={{ width: '0%' }}
+                animate={{ width: step === 1 ? '50%' : '100%' }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              />
+            </div>
+            <div className="flex justify-between mt-2">
+              {steps.map((s, i) => (
+                <span
+                  key={i}
+                  className={`font-body text-[10px] uppercase tracking-wider font-semibold transition-colors duration-300 ${
+                    i + 1 <= step ? 'text-nred' : 'text-ntext-muted/30'
+                  }`}
+                >
+                  {s.label}
+                </span>
+              ))}
             </div>
           </div>
-        </div>
 
-      </div>
+          <div className="text-center mb-7">
+            <img src={nortLogo} alt="NortDeploy" className="w-11 h-11 object-contain mx-auto mb-3" />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <h1 className="font-body font-bold text-xl text-white mb-1">
+                  {step === 1 ? 'Crear cuenta' : 'Verifica tu correo'}
+                </h1>
+                <p className="font-body text-sm text-ntext-muted">
+                  {step === 1
+                    ? 'Usa tu correo institucional @uninorte.edu.co'
+                    : `Código enviado a ${form.email}`}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
 
-      <div className="login-right">
-        <div className="form-card">
-          <div className="card-logo"><NortLogo size={52} /></div>
-
-          {step === 1 && (
-            <>
-              <h2 className="card-title">Crear cuenta</h2>
-              <p className="card-sub">Usa tu correo institucional @uninorte.edu.co</p>
-              {error && <div className="error-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{error}</div>}
-              <form onSubmit={handleRegister}>
-                <div className="field"><label className="field-label">Nombre completo</label><input className="field-input" name="name" placeholder="Juan Pérez" value={form.name} onChange={handleChange}/></div>
-                <div className="field"><label className="field-label">Correo institucional</label><input className="field-input" type="email" name="email" placeholder="usuario@uninorte.edu.co" value={form.email} onChange={handleChange}/></div>
-                <div className="field"><label className="field-label">Contraseña</label><input className="field-input" type="password" name="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={handleChange}/></div>
-                <button className="btn-roble" type="submit" disabled={loading}>
-                  {loading ? <><div className="spinner"/>Creando cuenta...</> : <>Crear cuenta <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></>}
-                </button>
-              </form>
-            </>
+          {success && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-body mb-5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+              {success}
+            </div>
           )}
 
-          {step === 2 && (
-            <>
-              <h2 className="card-title">Verifica tu correo</h2>
-              <p className="card-sub">Código enviado a <strong style={{color:'#94a3b8'}}>{form.email}</strong></p>
-              {success && <div className="verified-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>{success}</div>}
-              {error && <div className="error-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{error}</div>}
-              <form onSubmit={handleVerify}>
-                <div className="code-grid">
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-xs font-body mb-5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+              {error}
+            </div>
+          )}
+
+          <AnimatePresence mode="wait">
+            {step === 1 && (
+              <motion.form
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                onSubmit={handleRegister}
+                className="flex flex-col gap-5"
+              >
+                <div>
+                  <label className="block font-body text-xs font-semibold text-ntext-muted uppercase tracking-wider mb-2">Nombre completo</label>
+                  <input className="w-full bg-transparent border-b border-white/10 pb-2.5 font-body text-sm text-white outline-none focus:border-nred placeholder:text-white/20 transition-colors" name="name" placeholder="Juan Pérez" value={form.name} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block font-body text-xs font-semibold text-ntext-muted uppercase tracking-wider mb-2">Correo institucional</label>
+                  <input className="w-full bg-transparent border-b border-white/10 pb-2.5 font-body text-sm text-white outline-none focus:border-nred placeholder:text-white/20 transition-colors" type="email" name="email" placeholder="usuario@uninorte.edu.co" value={form.email} onChange={handleChange} />
+                </div>
+                <div>
+                  <label className="block font-body text-xs font-semibold text-ntext-muted uppercase tracking-wider mb-2">Contraseña</label>
+                  <input className="w-full bg-transparent border-b border-white/10 pb-2.5 font-body text-sm text-white outline-none focus:border-nred placeholder:text-white/20 transition-colors" type="password" name="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={handleChange} />
+                </div>
+                <button type="submit" disabled={loading}
+                  className="w-full py-3 rounded-xl font-body font-semibold text-sm text-white border border-nred/30 bg-nred/[0.08] hover:bg-nred/20 hover:border-nred disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 mt-2"
+                >
+                  {loading ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creando cuenta...</> : 'Crear cuenta'}
+                </button>
+              </motion.form>
+            )}
+
+            {step === 2 && (
+              <motion.form
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                onSubmit={handleVerify}
+                className="flex flex-col gap-6"
+              >
+                <div className="flex gap-2 justify-center">
                   {code.map((c, i) => (
-                    <input key={i} id={`c${i}`} className="code-cell" maxLength={1} value={c}
-                      onChange={e => handleCodeChange(i, e.target.value)}
-                      onKeyDown={e => e.key === 'Backspace' && !c && i > 0 && document.getElementById(`c${i-1}`)?.focus()}
+                    <input
+                      key={i}
+                      id={`rc${i}`}
+                      className="w-11 h-12 text-center font-mono text-lg font-bold bg-transparent border-b-2 border-white/10 text-white outline-none focus:border-nred transition-colors duration-200 placeholder:text-white/20"
+                      maxLength={1}
+                      value={c}
+                      onChange={(e) => handleCodeChange(i, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Backspace' && !c && i > 0 && document.getElementById(`rc${i - 1}`)?.focus()}
                       placeholder="·"
                     />
                   ))}
                 </div>
-                <button className="btn-roble" type="submit" disabled={loading}>
-                  {loading ? <><div className="spinner"/>Verificando...</> : <>Verificar y entrar <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></>}
+                <button type="submit" disabled={loading}
+                  className="w-full py-3 rounded-xl font-body font-semibold text-sm text-white border border-nred/30 bg-nred/[0.08] hover:bg-nred/20 hover:border-nred disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {loading ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Verificando...</> : 'Verificar código'}
                 </button>
-                <button type="button" className="toggle-form" style={{ marginTop: 12 }} onClick={() => { setCode(['','','','','','']); setError(null); handleRegister({ preventDefault: ()=>{} }) }}>
+                <button type="button"
+                  onClick={() => {
+                    setCode(['', '', '', '', '', ''])
+                    setError(null)
+                    handleRegister({ preventDefault: () => {} })
+                  }}
+                  className="text-center font-body text-xs text-ntext-muted/50 hover:text-ntext-muted transition-colors bg-transparent border-none cursor-pointer"
+                >
                   ¿No llegó el código? Reenviar
                 </button>
-              </form>
-            </>
-          )}
+              </motion.form>
+            )}
+          </AnimatePresence>
 
-          <div className="no-account" style={{ borderTop: 'none', marginTop: 16, paddingTop: 0 }}>
-            ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
-          </div>
-
-          <div className="powered-row">
-            <em>Powered by Roble</em> · <em style={{ color: '#F5A800' }}>OpenLab Uninorte</em>
-          </div>
+          <p className="text-center font-body text-xs text-ntext-muted/60 mt-6">
+            ¿Ya tienes cuenta?{' '}
+            <Link to="/login" className="text-nred font-semibold hover:text-nred-hover transition-colors">
+              Inicia sesión
+            </Link>
+          </p>
         </div>
-      </div>
 
-      <div className="left-footer">
-        <img src={uninorte60} alt="Uninorte 60 años" className="footer-60-logo" />
-      </div>
+        <div className="flex items-center justify-center gap-2 mt-6 font-mono text-[10px] text-ntext-muted/30">
+          <span>Powered by Roble</span>
+          <span className="text-white/10">·</span>
+          <span className="text-ngold/40">
+            <img src={openlabLogo} alt="OpenLab" className="w-3 h-3 object-contain inline-block align-middle mr-1" />
+          </span>
+        </div>
+      </motion.div>
     </div>
   )
 }

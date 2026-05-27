@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+@layer components {
+  .action-btn {
+    @apply w-7 h-7 bg-white/[0.03] border border-transparent rounded-lg flex items-center justify-center cursor-pointer text-ntext-muted transition-all duration-200 ease-out relative;
+  }
+  .action-btn:hover {
+    @apply bg-white/[0.1] border-white/[0.12] text-ntext -translate-y-px shadow-[0_2px_8px_rgba(0,0,0,0.2)];
+  }
+  .action-btn:active {
+    @apply translate-y-0 shadow-none;
+  }
+}
+
+.dot-grid {
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+}

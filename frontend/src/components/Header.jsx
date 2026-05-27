@@ -3,21 +3,6 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import nortLogo from '../assets/nort-logo.png'
 
-function NortLogo({ size = 40 }) {
-  return (
-    <img
-      src={nortLogo}
-      alt="NortDeploy Logo"
-      style={{
-        width: size,
-        height: size,
-        objectFit: 'contain',
-        filter: 'drop-shadow(0 0 12px rgba(255,107,0,0.25))'
-      }}
-    />
-  )
-}
-
 export default function Header() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -29,50 +14,61 @@ export default function Header() {
   const handleLogout = async () => {
     setOpen(false)
     await logout()
-    navigate('/login')
+    navigate('/')
   }
 
   return (
-    <>
-      <header className="header">
-        <div className="header-brand" onClick={() => navigate('/dashboard')}>
-          <NortLogo size={26} />
-          <span className="header-brand-name">Nort<span> Deploy</span></span>
+    <header className="sticky top-0 z-50 flex items-center justify-between px-8 h-[60px] bg-ndark/85 backdrop-blur-xl border-b border-white/[0.05]">
+      <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/dashboard')}>
+        <img src={nortLogo} alt="NortDeploy" className="w-[26px] h-[26px] object-contain" />
+        <span className="font-body font-bold text-[17px] tracking-tight text-white">
+          Nort<span className="text-nred">Deploy</span>
+        </span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 bg-white/[0.04] border border-white/[0.07] rounded-xl flex items-center justify-center cursor-pointer relative hover:bg-white/[0.08] transition-all duration-200">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] bg-nred rounded-full border-[1.5px] border-ndark" />
         </div>
-        <div className="header-right">
-          <div className="notif-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <div className="notif-dot" />
-          </div>
-          <div className="user-chip-wrap">
-            <div className="user-chip" onClick={() => setOpen(o => !o)}>
-              <div className="user-avatar">{firstName[0]?.toUpperCase()}</div>
-              <div className="user-info">
-                <span className="user-name">{firstName} {lastName}</span>
-                <span className="user-email">{user?.email || ''}</span>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+
+        <div className="relative">
+          <div
+            className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.07] rounded-xl py-[6px] pl-[6px] pr-3 cursor-pointer hover:bg-white/[0.08] transition-all duration-200"
+            onClick={() => setOpen(o => !o)}
+          >
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-nred to-orange-500 flex items-center justify-center text-[11px] font-bold text-white">
+              {firstName[0]?.toUpperCase()}
             </div>
-            {open && (
-              <div className="logout-menu">
-                <div className="logout-item" onClick={handleLogout}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
-                  Cerrar sesión
-                </div>
-              </div>
-            )}
+            <div className="flex flex-col leading-tight">
+              <span className="text-xs font-semibold text-ntext">{firstName} {lastName}</span>
+              <span className="text-[10px] text-ntext-muted">{user?.email || ''}</span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
           </div>
+
+          {open && (
+            <div className="absolute top-[calc(100%+8px)] right-0 bg-nsurface border border-white/[0.08] rounded-xl py-1.5 min-w-[160px] shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[100] animate-fade-in">
+              <div
+                className="flex items-center gap-2 px-3 py-[9px] rounded-lg cursor-pointer text-xs font-medium text-red-400 hover:bg-nred/10 transition-all duration-150"
+                onClick={handleLogout}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Cerrar sesión
+              </div>
+            </div>
+          )}
         </div>
-      </header>
-    </>
+      </div>
+    </header>
   )
 }
