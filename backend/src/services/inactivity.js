@@ -1,48 +1,70 @@
 const cron = require('node-cron')
-const { stopContainer } = require('./docker')
+const { stopContainer, stopCompose } = require('./docker')
 const { updateProject } = require('./robleDB')
 const { releasePort } = require('../utils/ports')
 const { INACTIVITY_MINUTES } = require('../config/env')
 
-// Token de admin para operaciones del sistema
-// Se inicializa al arrancar el servidor
 let adminToken = null
 
 function setAdminToken(token) {
   adminToken = token
+  console.log('[inactivity] adminToken actualizado')
 }
 
-// ── Cron job: cada 5 minutos revisa inactividad ────────────
 function startInactivityWatcher(getProjectsFn) {
-  console.log(`✓ Watcher de inactividad activo (${INACTIVITY_MINUTES} min)`)
+  console.log(`[inactivity] Watcher activo — umbral de inactividad: ${INACTIVITY_MINUTES} min`)
 
-  cron.schedule('*/5 * * * *', async () => {
-    if (!adminToken) return
+  cron.schedule('* * * * *', async () => {
+    const now = new Date()
+    console.log(`[inactivity] Cron tick — ${now.toTimeString().slice(0, 8)}`)
+
+    if (!adminToken) {
+      console.log('[inactivity] WARN: adminToken no disponible, saltando ciclo')
+      return
+    }
 
     try {
+      console.log('[inactivity] Token disponible, buscando proyectos online...')
       const projects = await getProjectsFn(adminToken)
-      const now = new Date()
+      console.log(`[inactivity] Proyectos online encontrados: ${projects.length}`)
+
       const limitMs = INACTIVITY_MINUTES * 60 * 1000
 
       for (const project of projects) {
         if (project.estado !== 'online') continue
-        if (!project.ultima_actividad) continue
+        if (!project.ultima_actividad) {
+          console.log(`[inactivity] "${project.nombre}" sin ultima_actividad, skip`)
+          continue
+        }
 
-        const lastActivity = new Date(project.ultima_actividad)
-        const inactiveMs = now - lastActivity
+        const inactiveMs = now - new Date(project.ultima_actividad)
+        const inactiveMin = (inactiveMs / 60000).toFixed(1)
 
-        if (inactiveMs >= limitMs) {
-          console.log(`[inactivity] Apagando ${project.nombre} (${Math.round(inactiveMs / 60000)} min inactivo)`)
+        console.log(`[inactivity] Revisando "${project.nombre}" — inactivo: ${inactiveMin} min (límite: ${INACTIVITY_MINUTES} min)`)
 
-          try {
-            if (project.container_id) {
-              await stopContainer(project.container_id)
-              releasePort(project.puerto)
-            }
-            await updateProject(adminToken, project._id, { estado: 'sleeping' })
-          } catch (err) {
-            console.error(`[inactivity] Error apagando ${project.nombre}:`, err.message)
+        if (inactiveMs < limitMs) {
+          console.log(`[inactivity] "${project.nombre}" activo (${inactiveMin} min < ${INACTIVITY_MINUTES} min), skip`)
+          continue
+        }
+
+        console.log(`[inactivity] Apagando "${project.nombre}" (tipo: ${project.tipo}, ${inactiveMin} min inactivo)...`)
+
+        try {
+          if (project.tipo === 'compose') {
+            await stopCompose(project.repo_dir, project.image_id)
+          } else {
+            await stopContainer(project.container_id)
           }
+        } catch (stopErr) {
+          console.log(`[inactivity] Advertencia al detener "${project.nombre}": ${stopErr.message} — marcando sleeping de todas formas`)
+        }
+
+        try {
+          releasePort(project.puerto)
+          await updateProject(adminToken, project._id, { estado: 'sleeping' })
+          console.log(`[inactivity] ✓ "${project.nombre}" marcado como sleeping`)
+        } catch (updateErr) {
+          console.error(`[inactivity] ✗ Error actualizando estado de "${project.nombre}": ${updateErr.message}`)
         }
       }
     } catch (err) {
@@ -51,7 +73,6 @@ function startInactivityWatcher(getProjectsFn) {
   })
 }
 
-// ── Actualizar última actividad al recibir request ─────────
 async function touchProject(projectId, accessToken) {
   try {
     await updateProject(accessToken, projectId, {
