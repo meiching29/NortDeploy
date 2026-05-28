@@ -17,7 +17,7 @@ async function registerRoute(subdominio, hostPort, containerName, appPort) {
     match: [{ host: [subdominio] }],
     handle: [{
       handler: 'reverse_proxy',
-      upstreams: [{ dial: upstream }],
+      upstreams: [{ dial: `host.docker.internal:${hostPort}` }],
       health_checks: {
         passive: { fail_duration: '30s' }
       }
@@ -28,10 +28,11 @@ async function registerRoute(subdominio, hostPort, containerName, appPort) {
   try {
     // Intentar agregar la ruta al servidor HTTP de Caddy
     await axios.post(
-      `${CADDY_ADMIN}/config/apps/http/servers/srv0/routes`,
+      `${CADDY_ADMIN}/config/apps/http/servers/srv0/routes/0`,
       route,
       { headers: { 'Content-Type': 'application/json' } }
     )
+    
     console.log(`[caddy] ✓ Ruta registrada: ${subdominio} → localhost:${hostPort}`)
   } catch (err) {
     // Si el servidor srv0 no existe aún, inicializarlo

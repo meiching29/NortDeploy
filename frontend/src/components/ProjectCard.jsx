@@ -1,17 +1,39 @@
+import { useState, useEffect } from 'react'
+import { projectsAPI } from '../api/projects'
 import StatusBadge from './StatusBadge'
+import { openHttp } from '../utils/openHttp'
 
-export default function ProjectCard({ project, onAction }) {
+export default function ProjectCard({ project, onAction, onSelect }) {
   const { id, name, url, repo, type, port, status } = project
+
+  const [stats, setStats] = useState(null)
+
+  useEffect(() => {
+    let interval
+    if (status === 'online') {
+      projectsAPI.stats(id).then(r => setStats(r.data)).catch(() => setStats(null))
+      interval = setInterval(() => {
+        projectsAPI.stats(id).then(r => setStats(r.data)).catch(() => setStats(null))
+      }, 10000)
+    } else {
+      setStats(null)
+    }
+    return () => { clearInterval(interval) }
+  }, [id, status])
+
+  const httpUrl = `http://${url}`
 
   const handleVisit = async (e) => {
     e.preventDefault()
+    e.stopPropagation()
+    const httpUrl = `http://${url}`  // forzar http explícito
     if (status === 'sleeping' || status === 'paused') {
       await onAction(id, 'start')
       setTimeout(() => {
-        window.open(`http://${url}`, '_blank')
+        openHttp(url)
       }, 2500)
     } else {
-      window.open(`http://${url}`, '_blank')
+      openHttp(url)
     }
   }
 
@@ -23,6 +45,7 @@ export default function ProjectCard({ project, onAction }) {
         ${status === 'paused' ? 'border-l-2 border-l-ngold' : ''}
         ${status === 'sleeping' ? 'border-l-2 border-l-ntext-muted' : ''}
         ${status === 'error' ? 'border-l-2 border-l-nred' : ''}`}
+      onClick={() => onSelect?.(project)}
     >
       <div className="flex items-center justify-between">
         <span className="font-body font-bold text-[15px] text-white tracking-tight">{name}</span>
@@ -54,24 +77,43 @@ export default function ProjectCard({ project, onAction }) {
         </div>
       </div>
 
+      {status === 'online' && stats && (
+        <div className="pc-stats">
+          <div className="pc-stat">
+            <span className="pc-stat-label">CPU</span>
+            <div className="pc-stat-bar">
+              <div className="pc-stat-fill cpu" style={{ width: `${Math.min(stats.cpu, 100)}%` }} />
+            </div>
+            <span className="pc-stat-value font-mono">{stats.cpu.toFixed(1)}%</span>
+          </div>
+          <div className="pc-stat">
+            <span className="pc-stat-label">RAM</span>
+            <div className="pc-stat-bar">
+              <div className="pc-stat-fill ram" style={{ width: `${stats.memoryPercent}%` }} />
+            </div>
+            <span className="pc-stat-value font-mono">{stats.memoryMB}MB / {stats.memoryLimitMB}MB</span>
+          </div>
+        </div>
+      )}
+
       <div className="h-[1px] bg-white/[0.03]" />
 
       <div className="flex items-center gap-1">
         {status === 'online' ? (
-          <button className="action-btn" title="Pausar" onClick={() => onAction(id, 'stop')}>
+          <button className="action-btn" title="Pausar" onClick={e => { e.stopPropagation(); onAction(id, 'stop') }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" />
             </svg>
           </button>
         ) : (
-          <button className="action-btn text-green-500 hover:bg-green-500/12 hover:border-green-500/20 hover:text-green-400 hover:shadow-[0_0_16px_rgba(34,197,94,0.12)]" title="Activar" onClick={() => onAction(id, 'start')}>
+          <button className="action-btn text-green-500 hover:bg-green-500/12 hover:border-green-500/20 hover:text-green-400 hover:shadow-[0_0_16px_rgba(34,197,94,0.12)]" title="Activar" onClick={e => { e.stopPropagation(); onAction(id, 'start') }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
           </button>
         )}
 
-        <button className="action-btn text-red-400 hover:bg-nred/15 hover:border-nred/25 hover:text-red-300 hover:shadow-[0_0_16px_rgba(200,32,46,0.12)]" title="Eliminar" onClick={() => onAction(id, 'remove')}>
+        <button className="action-btn text-red-400 hover:bg-nred/15 hover:border-nred/25 hover:text-red-300 hover:shadow-[0_0_16px_rgba(200,32,46,0.12)]" title="Eliminar" onClick={e => { e.stopPropagation(); onAction(id, 'remove') }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6l-1 14H6L5 6" />
@@ -80,7 +122,7 @@ export default function ProjectCard({ project, onAction }) {
           </svg>
         </button>
 
-        <button className="action-btn text-blue-400 hover:bg-blue-500/12 hover:border-blue-500/20 hover:text-blue-300 hover:shadow-[0_0_16px_rgba(96,165,250,0.12)]" title="Abrir enlace" onClick={e => { e.stopPropagation(); window.open(`http://${url}`, '_blank') }}>
+        <button className="action-btn text-blue-400 hover:bg-blue-500/12 hover:border-blue-500/20 hover:text-blue-300 hover:shadow-[0_0_16px_rgba(96,165,250,0.12)]" title="Abrir enlace" onClick={e => { e.stopPropagation(); openHttp(url) }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
           </svg>

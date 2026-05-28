@@ -130,7 +130,7 @@ router.post('/:id/start', async (req, res) => {
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
     if (project.tipo === 'compose') {
-      await docker.startCompose(project.repo_dir, project.container_id)
+      await docker.startCompose(project.repo_dir, project.image_id)
     } else {
       await docker.startContainer(project.container_id)
     }
@@ -151,7 +151,7 @@ router.post('/:id/stop', async (req, res) => {
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
     if (project.tipo === 'compose') {
-      await docker.stopCompose(project.repo_dir, project.container_id)
+      await docker.stopCompose(project.repo_dir, project.image_id)
     } else {
       await docker.stopContainer(project.container_id)
     }
@@ -172,7 +172,7 @@ router.delete('/:id', async (req, res) => {
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
     if (project.tipo === 'compose') {
-      await docker.removeCompose(project.repo_dir, project.container_id)
+      await docker.removeCompose(project.repo_dir, project.image_id)
     } else {
       await docker.removeContainer(project.container_id, project.image_id)
     }

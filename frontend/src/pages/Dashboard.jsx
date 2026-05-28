@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
 import Header from '../components/Header'
 import ProjectCard from '../components/ProjectCard'
 import NewProjectModal from '../components/NewProjectModal'
 import EditProjectModal from '../components/EditProjectModal'
 import LogsModal from '../components/LogsModal'
+import ProjectDetail from './ProjectDetail'
 import { projectsAPI } from '../api/projects'
 
 const STAT_CONFIG = [
@@ -24,17 +26,20 @@ function normalizeProject(p) {
     port: p.puerto,
     status: p.estado,
     containerId: p.container_id,
+    ultima_actividad: p.ultima_actividad,
   }
 }
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { addNotification } = useNotifications()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
   const [logsProjectId, setLogsProjectId] = useState(null)
+  const [selectedProject, setSelectedProject] = useState(null)
   const [error, setError] = useState(null)
 
   async function fetchProjects() {
@@ -71,13 +76,27 @@ export default function Dashboard() {
       puerto: parseInt(formData.port) || 3000,
     })
     setProjects(prev => [...prev, normalizeProject(res.data)])
+    const urlPreview = res.data.subdominio || `${formData.name.toLowerCase().replace(/\s+/g, '-')}.proyecto.usuario.localhost`
+    addNotification('success', '¡Proyecto desplegado!', `${formData.name} está listo en ${urlPreview}`)
   }
 
   async function handleAction(projectId, action) {
     try {
-      if (action === 'start') await projectsAPI.start(projectId)
-      if (action === 'stop') await projectsAPI.stop(projectId)
-      if (action === 'remove') await projectsAPI.remove(projectId)
+      const project = projects.find(pj => pj.id === projectId)
+      const projectName = project?.name || 'Proyecto'
+
+      if (action === 'start') {
+        await projectsAPI.start(projectId)
+        addNotification('success', 'Proyecto activado', `${projectName} está en línea`)
+      }
+      if (action === 'stop') {
+        await projectsAPI.stop(projectId)
+        addNotification('warning', 'Proyecto pausado', `${projectName} fue pausado`)
+      }
+      if (action === 'remove') {
+        addNotification('info', 'Proyecto eliminado', `${projectName} fue eliminado`)
+        await projectsAPI.remove(projectId)
+      }
       if (action === 'edit') {
         const p = projects.find(pj => pj.id === projectId)
         if (p) setEditingProject(p)
@@ -87,9 +106,15 @@ export default function Dashboard() {
         setLogsProjectId(projectId)
         return
       }
+      if (action === 'restart') {
+        await projectsAPI.stop(projectId)
+        await projectsAPI.start(projectId)
+      }
       await fetchProjects()
     } catch (err) {
-      setError(`Error al ejecutar la acción: ${err.response?.data?.message || err.message}`)
+      const msg = err.response?.data?.message || err.message
+      setError(`Error al ejecutar la acción: ${msg}`)
+      addNotification('error', 'Error', msg)
     }
   }
 
@@ -134,7 +159,15 @@ export default function Dashboard() {
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-3 mb-8">
+        {selectedProject ? (
+          <ProjectDetail
+            project={selectedProject}
+            onClose={() => setSelectedProject(null)}
+            onAction={handleAction}
+          />
+        ) : (
+          <>
+          <div className="grid grid-cols-4 gap-3 mb-8">
           {STAT_CONFIG.map(s => (
             <div key={s.key}
               className="bg-nsurface border border-white/[0.04] rounded-2xl p-5 flex items-center gap-4 transition-all duration-200 hover:border-white/[0.08] hover:bg-[#11141B] hover:-translate-y-0.5">
@@ -216,7 +249,7 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-3 gap-3">
             {filtered.map(p => (
-              <ProjectCard key={p.id} project={p} onAction={handleAction} />
+              <ProjectCard key={p.id} project={p} onAction={handleAction} onSelect={setSelectedProject} />
             ))}
             <div
               onClick={() => setShowModal(true)}
@@ -230,6 +263,8 @@ export default function Dashboard() {
               <span className="font-body text-sm font-semibold text-ntext-muted">Nuevo proyecto</span>
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
 
