@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_URL=http://localhost:4000
-      - VITE_ROBLE_TOKEN=${ROBLE_TOKEN}
+      - VITE_ROBLE_TOKEN=nortdeploy_3e0806f857
     depends_on:
       - backend
 
@@ -19,28 +19,40 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - ROBLE_TOKEN=${ROBLE_TOKEN}
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      - ROBLE_TOKEN=nortdeploy_3e0806f857
+      - CADDY_ADMIN_URL=http://caddy:2019
+      - REPOS_DIR=/app/repos
+      - BASE_PORT=9000
+      # Windows: descomenta esta línea y comenta el volumen del socket
+      # - DOCKER_HOST=tcp://host.docker.internal:2375
     volumes:
+      - repos_data:/app/repos
+      # Mac/Linux: socket Unix — en Windows comentar esta línea
+      # y habilitar TCP en Docker Desktop Settings > General
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./backend/repos:/app/repos        # repos clonados de GitHub
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - caddy
 
   # ── Proxy: Caddy con subdominios dinámicos ─────────────
   caddy:
     image: caddy:2-alpine
     ports:
       - "80:80"
+      - "2019:2019"
     volumes:
       - ./proxy/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
-    depends_on:
-      - backend
+      - caddy_config:/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   default:
-    name: unihost-net
+    name: nortdeploy-net
 
 volumes:
   caddy_data:
+  caddy_config:
+  repos_data:

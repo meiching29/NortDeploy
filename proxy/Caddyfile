@@ -1,0 +1,11 @@
+{
+	admin 0.0.0.0:2019
+	log {
+		output stdout
+		level INFO
+	}
+}
+
+:80 {
+	respond /health "NortDeploy Proxy OK" 200
+}

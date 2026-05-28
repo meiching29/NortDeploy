@@ -4,6 +4,7 @@ const auth = require('../middleware/auth')
 const rateLimit = require('../middleware/rateLimit')
 const db = require('../services/robleDB')
 const docker = require('../services/docker')
+const caddy = require('../services/caddy')
 const { getNextPort, reservePort, releasePort } = require('../utils/ports')
 const { touchProject } = require('../services/inactivity')
 
@@ -28,24 +29,30 @@ router.post('/', rateLimit, async (req, res) => {
     return res.status(400).json({ message: 'nombre y repo_url son obligatorios.' })
   }
 
-  const safeName = nombre.toLowerCase().replace(/[^a-z0-9-]/g, '-')
-  const projectId = `nd-${req.user._id.slice(0, 6)}-${safeName}-${Date.now()}`
-  const imageTag = projectId
-  const hostPort = customPort || getNextPort()
-  const userName = req.user.email.split('@')[0].toLowerCase()
-  const subdominio = `${safeName}.${userName}.localhost`
+  const safeName    = nombre.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+  const projectId   = `nd-${req.user._id.slice(0, 6)}-${safeName}-${Date.now()}`
+  const imageTag    = projectId
+  const appPort     = parseInt(customPort) || 3000  // puerto INTERNO del contenedor
+  const dockerPorts = await docker.getUsedHostPorts()
+  let hostPort = getNextPort()
+  while (dockerPorts.has(hostPort)) {
+    reservePort(hostPort)   // registrar el puerto huérfano para que getNextPort lo salte
+    hostPort = getNextPort()
+  }
+  const userName    = req.user.email.split('@')[0].toLowerCase()
+  const subdominio  = `${safeName}.${userName}.localhost`
 
   console.log('══════════════════════════════════════════')
   console.log('[POST /projects] Nueva solicitud de despliegue')
   console.log(`  nombre     = ${nombre}`)
   console.log(`  repo_url   = ${repo_url}`)
   console.log(`  tipo       = ${tipo}`)
-  console.log(`  puerto     = ${hostPort}`)
+  console.log(`  appPort    = ${appPort}  (puerto interno del app)`)
+  console.log(`  hostPort   = ${hostPort} (puerto externo asignado)`)
   console.log(`  usuario    = ${req.user._id} / ${req.user.email}`)
   console.log('══════════════════════════════════════════')
 
-  // Reservar rango de puertos para compose (máx 5 servicios)
-  for (let i = 0; i < 5; i++) reservePort(hostPort + i)
+  reservePort(hostPort)
 
   try {
     // STEP 1 — Clonar repo
@@ -71,32 +78,38 @@ router.post('/', rateLimit, async (req, res) => {
 
       // STEP 4a — Correr contenedor
       console.log('[STEP 4] Lanzando contenedor...')
-      const result = await docker.runContainer(imageTag, imageTag, hostPort, customPort || 3000)
+      const result = await docker.runContainer(imageTag, imageTag, hostPort, appPort)
       containerId = result.containerId
-      imageId = result.imageId
+      imageId     = result.imageId
 
     } else {
       // STEP 3b — Docker Compose up
       console.log('[STEP 3] Levantando docker-compose...')
       const result = await docker.runCompose(repoDir, imageTag, hostPort)
       containerId = result.containerId
-      imageId = result.imageId
+      imageId     = result.imageId
     }
 
     // STEP 5 — Guardar en Roble DB
     console.log('[STEP 5] Guardando en Roble DB...')
     const project = await db.createProject(req.accessToken, {
-      nombre: safeName,
+      nombre:        safeName,
       repo_url,
-      tipo: deployType,
-      puerto: hostPort,
-      usuario_id: req.user._id,
+      tipo:          deployType,
+      puerto:        hostPort,
+      usuario_id:    req.user._id,
       usuario_email: req.user.email,
-      container_id: containerId,
-      image_id: imageId,
+      container_id:  containerId,
+      image_id:      imageId,
       subdominio,
-      repo_dir: repoDir,
+      repo_dir:      repoDir,
     })
+
+    // STEP 6 — Registrar subdominio en Caddy
+    console.log('[STEP 6] Registrando subdominio en Caddy...')
+    const caddyContainer = deployType === 'dockerfile' ? imageTag : null
+    const caddyPort      = deployType === 'dockerfile' ? appPort  : null
+    await caddy.registerRoute(subdominio, hostPort, caddyContainer, caddyPort)
 
     console.log(`[POST /projects] ✓ Proyecto creado: ${project._id}`)
     res.status(201).json(project)
@@ -165,6 +178,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     releasePort(project.puerto)
+    await caddy.removeRoute(project.subdominio)
     await db.deleteProject(req.accessToken, project._id)
     res.json({ message: 'Proyecto eliminado.' })
   } catch (err) {
@@ -182,36 +196,6 @@ router.get('/:id/logs', async (req, res) => {
     const logs = await docker.getContainerLogs(project.container_id)
     await touchProject(project._id, req.accessToken)
     res.json({ logs })
-  } catch (err) {
-    res.status(500).json({ message: err.message })
-  }
-})
-
-// ── PUT /projects/:id ──────────────────────────────────────
-router.put('/:id', async (req, res) => {
-  try {
-    const project = await db.getProjectById(req.accessToken, req.params.id)
-    if (!project) return res.status(404).json({ message: 'Proyecto no encontrado.' })
-    if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
-
-    const { nombre, repo_url, tipo } = req.body
-    const updates = {}
-
-    if (nombre) {
-      const safeName = nombre.toLowerCase().replace(/[^a-z0-9-]/g, '-')
-      updates.nombre = safeName
-      const userName = req.user.email.split('@')[0].toLowerCase()
-      updates.subdominio = `${safeName}.${userName}.localhost`
-    }
-    if (repo_url) updates.repo_url = repo_url
-    if (tipo) updates.tipo = tipo
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: 'No hay campos para actualizar.' })
-    }
-
-    const updated = await db.updateProject(req.accessToken, project._id, updates)
-    res.json(updated)
   } catch (err) {
     res.status(500).json({ message: err.message })
   }
