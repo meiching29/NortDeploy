@@ -3,6 +3,18 @@ import StatusBadge from './StatusBadge'
 export default function ProjectCard({ project, onAction }) {
   const { id, name, url, repo, type, port, status } = project
 
+  const handleVisit = async (e) => {
+    e.preventDefault()
+    if (status === 'sleeping' || status === 'paused') {
+      await onAction(id, 'start')
+      setTimeout(() => {
+        window.open(`http://${url}`, '_blank')
+      }, 2500)
+    } else {
+      window.open(`http://${url}`, '_blank')
+    }
+  }
+
   return (
     <div
       className={`bg-nsurface border border-white/[0.04] rounded-2xl p-5 flex flex-col gap-3 cursor-pointer 
@@ -18,9 +30,12 @@ export default function ProjectCard({ project, onAction }) {
       </div>
 
       <div className="font-mono text-[11px] text-ntext-muted">
-        <a href={`http://${url}`} target="_blank" rel="noopener noreferrer"
+        <a href={`http://${url}`} onClick={handleVisit} style={{ cursor: 'pointer' }}
           className="text-ntext-muted hover:text-blue-400 transition-colors duration-150 no-underline">
           {url}
+          {(status === 'sleeping' || status === 'paused') && (
+            <span className="ml-1.5 text-[10px] text-ntext-muted opacity-60">· Dormido — click para reactivar</span>
+          )}
         </a>
       </div>
 

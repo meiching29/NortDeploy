@@ -126,6 +126,24 @@ async function runContainer(imageTag, containerName, hostPort, appPort = 3000) {
 async function runCompose(repoDir, projectName, hostPort) {
   console.log(`[runCompose] Levantando compose en ${repoDir} proyecto=${projectName}`)
 
+  // Reescribir puertos y eliminar sección networks antes de levantar
+  const composePath = path.join(repoDir, 'docker-compose.yml')
+  let composeContent = fs.readFileSync(composePath, 'utf8')
+
+  let portCounter = hostPort
+  composeContent = composeContent.replace(
+    /^\s*-\s*["']?(\d+):(\d+)["']?\s*$/gm,
+    (match) => {
+      const container = match.match(/(\d+)["']?\s*$/)[1]
+      const assigned = portCounter++
+      return match.replace(/["']?\d+:\d+["']?/, `"${assigned}:${container}"`)
+    }
+  )
+  composeContent = composeContent.replace(/\nnetworks:[\s\S]*$/m, '')
+
+  fs.writeFileSync(composePath, composeContent, 'utf8')
+  console.log(`[runCompose] Puertos reescritos desde ${hostPort}, networks eliminado`)
+
   return new Promise((resolve, reject) => {
     // -p projectName: nombre único del proyecto para no colisionar
     // --build: reconstruye las imágenes

@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
-# Docker CLI para crear contenedores dinámicamente
-RUN apk add --no-cache docker-cli git
+# Git + Docker CLI + Docker Compose
+RUN apk add --no-cache git docker-cli docker-cli-compose
 
 WORKDIR /app
 
@@ -10,7 +10,6 @@ RUN npm install
 
 COPY . .
 
-# Carpeta donde se clonan los repos
 RUN mkdir -p /app/repos
 
 EXPOSE 4000
