@@ -57,7 +57,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchProjects()
     // Polling para detectar cambios de estado (auto-sleep)
-    const interval = setInterval(fetchProjects, 10000)
+    const interval = setInterval(fetchProjects, 60000)
     return () => clearInterval(interval)
   }, [])
 

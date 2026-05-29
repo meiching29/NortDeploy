@@ -12,5 +12,5 @@ module.exports = {
   // BUG FIX: '/app/repos' is a container path that doesn't exist on Windows.
   // Default to a 'repos' folder next to the backend process instead.
   REPOS_DIR:    process.env.REPOS_DIR    || path.join(process.cwd(), 'repos'),
-  INACTIVITY_MINUTES: parseInt(process.env.INACTIVITY_MINUTES) || 2,
+  INACTIVITY_MINUTES: parseInt(process.env.INACTIVITY_MINUTES) || 30,
 }

@@ -196,7 +196,7 @@ router.get('/:id/logs', async (req, res) => {
     if (project.usuario_id !== req.user._id) return res.status(403).json({ message: 'No autorizado.' })
 
     const logs = await docker.getContainerLogs(project.container_id)
-    //await touchProject(project._id, req.accessToken)
+    await touchProject(project._id, req.accessToken)
     res.json({ logs })
   } catch (err) {
     res.status(500).json({ message: err.message })
@@ -212,7 +212,7 @@ router.get('/:id/stats', async (req, res) => {
     if (project.estado !== 'online') return res.status(400).json({ message: 'El proyecto no está activo.' })
 
     const stats = await docker.getContainerStats(project.container_id)
-    //await touchProject(project._id, req.accessToken)
+    await touchProject(project._id, req.accessToken)
     res.json(stats)
   } catch (err) {
     res.status(500).json({ message: err.message })
