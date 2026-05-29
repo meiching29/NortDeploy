@@ -36,28 +36,11 @@ async function bootstrap() {
   console.log('\n🚀 Iniciando NortDeploy Backend...')
   console.log(`   Roble token: ${ROBLE_TOKEN}`)
 
-  // Para el setup inicial necesitamos un token de admin
-  // En producción esto vendría de una variable de entorno
-  // Por ahora el setup de tabla se intenta con un token dummy
-  // (si falla, la tabla ya existe o se crea manualmente en Roble)
   try {
-    // Intentar setup de la tabla — solo funciona si ADMIN_TOKEN está definido
-    if (process.env.ADMIN_TOKEN) {
-      await setupTable(process.env.ADMIN_TOKEN)
-
-      // Cargar puertos en uso desde proyectos existentes
-      const projects = await getAllActiveProjects(process.env.ADMIN_TOKEN)
-      initPorts(projects)
-
-      // Iniciar watcher de inactividad
-      const { setAdminToken } = require('./services/inactivity')
-      setAdminToken(process.env.ADMIN_TOKEN)
-      startInactivityWatcher((token) => getAllActiveProjects(token))
-    } else {
-      console.log('⚠ ADMIN_TOKEN no definido — setup automático deshabilitado')
-      console.log('  Crea la tabla "proyectos" manualmente en Roble o define ADMIN_TOKEN')
-      initPorts([])
-    }
+    initPorts([])
+    // Arrancar watcher — el token se setea cuando el primer usuario se loguea
+    startInactivityWatcher((token) => getAllActiveProjects(token))
+    console.log('✓ Watcher de inactividad activo (se activa con primer login)')
   } catch (err) {
     console.error('Error en bootstrap:', err.message)
     initPorts([])

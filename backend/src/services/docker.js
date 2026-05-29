@@ -198,13 +198,23 @@ async function stopContainer(containerId) {
 
 // ── Detener compose ───────────────────────────────────────
 async function stopCompose(repoDir, projectName) {
-  return new Promise((resolve, reject) => {
-    exec(
-      `docker-compose -p ${projectName} stop`,
-      { cwd: repoDir },
-      (err) => err ? reject(err) : resolve()
-    )
+  console.log(`[stopCompose] Deteniendo proyecto compose: ${projectName}`)
+  const containers = await docker.listContainers({
+    filters: JSON.stringify({ label: [`com.docker.compose.project=${projectName}`] })
   })
+  if (containers.length === 0) {
+    console.log(`[stopCompose] No se encontraron contenedores activos para ${projectName}`)
+    return
+  }
+  for (const info of containers) {
+    try {
+      await docker.getContainer(info.Id).stop()
+      console.log(`[stopCompose] ✓ Contenedor ${info.Id.slice(0, 12)} detenido`)
+    } catch (err) {
+      console.error(`[stopCompose] Error deteniendo ${info.Id.slice(0, 12)}: ${err.message}`)
+      throw err
+    }
+  }
 }
 
 // ── Iniciar contenedor detenido ───────────────────────────
@@ -216,13 +226,21 @@ async function startContainer(containerId) {
 
 // ── Iniciar compose detenido ──────────────────────────────
 async function startCompose(repoDir, projectName) {
-  return new Promise((resolve, reject) => {
-    exec(
-      `docker-compose -p ${projectName} start`,
-      { cwd: repoDir },
-      (err) => err ? reject(err) : resolve()
-    )
+  console.log(`[startCompose] Iniciando proyecto compose: ${projectName}`)
+  const containers = await docker.listContainers({
+    all: true,
+    filters: JSON.stringify({ label: [`com.docker.compose.project=${projectName}`] })
   })
+  for (const info of containers) {
+    try {
+      await docker.getContainer(info.Id).start()
+      console.log(`[startCompose] ✓ Contenedor ${info.Id.slice(0, 12)} iniciado`)
+    } catch (err) {
+      if (!err.message.includes('already started')) {
+        console.error(`[startCompose] Error iniciando ${info.Id.slice(0, 12)}: ${err.message}`)
+      }
+    }
+  }
 }
 
 // ── Eliminar contenedor e imagen ──────────────────────────
@@ -243,16 +261,29 @@ async function removeContainer(containerId, imageTag) {
 
 // ── Eliminar compose ──────────────────────────────────────
 async function removeCompose(repoDir, projectName) {
-  return new Promise((resolve, reject) => {
-    exec(
-      `docker-compose -p ${projectName} down --rmi all --volumes`,
-      { cwd: repoDir },
-      (err, stdout, stderr) => {
-        console.log(`[removeCompose] ${stdout}`)
-        resolve() // siempre resolver aunque falle
-      }
-    )
+  console.log(`[removeCompose] Eliminando proyecto compose: ${projectName}`)
+  const containers = await docker.listContainers({
+    all: true,
+    filters: JSON.stringify({ label: [`com.docker.compose.project=${projectName}`] })
   })
+  const imageIds = new Set()
+  for (const info of containers) {
+    imageIds.add(info.ImageID)
+    try {
+      const c = docker.getContainer(info.Id)
+      await c.stop().catch(() => {})
+      await c.remove()
+      console.log(`[removeCompose] ✓ Contenedor ${info.Id.slice(0, 12)} eliminado`)
+    } catch (err) {
+      console.error(`[removeCompose] Error eliminando contenedor ${info.Id.slice(0, 12)}: ${err.message}`)
+    }
+  }
+  for (const imageId of imageIds) {
+    try {
+      await docker.getImage(imageId).remove({ force: true })
+      console.log(`[removeCompose] ✓ Imagen ${imageId.slice(0, 12)} eliminada`)
+    } catch {}
+  }
 }
 
 // ── Logs ──────────────────────────────────────────────────
